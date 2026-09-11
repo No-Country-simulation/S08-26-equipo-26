@@ -1,0 +1,27 @@
+name: Manual Sync to QA Repo
+
+on:
+  workflow_dispatch: # Allows you to trigger this manually from the GitHub UI
+
+jobs:
+  sync-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Development Repo (Dev Branch Only)
+        uses: actions/checkout@v4
+        with:
+          ref: dev # <--- Forces the script to ONLY read your dev branch
+          fetch-depth: 0
+
+      - name: Push to QA Repository (Dev Branch Only)
+        env:
+          QA_TOKEN: ${{ secrets.QA_REPO_TOKEN }} 
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@://github.com"
+          
+          # Link your private QA repo using your PAT secret
+          git remote add qa https://x-access-token:${QA_TOKEN}@://github.com
+          
+          # <--- Safely pushes local dev to QA dev. Main is never touched.
+          git push qa dev:dev --force 
