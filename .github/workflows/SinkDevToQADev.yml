@@ -27,7 +27,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           # IMPORTANT: Replace OWNER and QA-REPO with your real values
-          git remote add qa "https://x-access-token:${QA_TOKEN}@github.com/OWNER/QA-REPO.git"
+          git remote add qa "https://x-access-token:${QA_TOKEN}@github.com/leonasturizaga/S08-26-equipo-26-condotrack.git"
 
           # Force push the local 'dev' branch to the QA repo's 'dev' branch
           git push qa dev:dev --force
