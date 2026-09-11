@@ -1,7 +1,7 @@
 name: Manual Sync to QA Repo
 
 on:
-  workflow_dispatch: # This will now be visible on all branches
+  workflow_dispatch:
 
 jobs:
   sync-branch:
@@ -15,18 +15,19 @@ jobs:
 
       - name: Push to QA Repository (Dev Branch Only)
         env:
-          QA_TOKEN: ${{ secrets.QA_REPO_TOKEN }} 
+          QA_TOKEN: ${{ secrets.QA_REPO_TOKEN }}
         run: |
-          # Safety check to see if the token is actually loading
+          # Safety check
           if [ -z "$QA_TOKEN" ]; then
-            echo "ERROR: QA_REPO_TOKEN secret is empty or missing in GitHub Settings!"
+            echo "ERROR: QA_REPO_TOKEN secret is empty or missing!"
             exit 1
           fi
 
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Wrapped in quotes to prevent token breakdown
-          git remote add qa "https://x-access-token:${QA_TOKEN}@://github.com"
-          
+
+          # IMPORTANT: Replace OWNER and QA-REPO with your real values
+          git remote add qa "https://x-access-token:${QA_TOKEN}@github.com/OWNER/QA-REPO.git"
+
+          # Force push the local 'dev' branch to the QA repo's 'dev' branch
           git push qa dev:dev --force
