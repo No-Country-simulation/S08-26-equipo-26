@@ -3393,6 +3393,35 @@ body {
   font-size: var(--font-meta);
 }
 
+/* M28.8.10 */
+.workspace-list-row-clickable {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+}
+
+.workspace-list-row-clickable:hover {
+  background: var(--surface-hover, rgba(113, 172, 233, 0.08));
+}
+
+.workspace-list-row-clickable:focus-visible {
+  outline: 2px solid var(--blue-400);
+  outline-offset: -2px;
+}
+
+.workspace-list-row-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+
+
 .status-error {
   background: var(--error-soft);
   color: var(--error);
@@ -5145,3 +5174,6 @@ body {
     padding: 22px 24px;
   }
 }
+
+
+
