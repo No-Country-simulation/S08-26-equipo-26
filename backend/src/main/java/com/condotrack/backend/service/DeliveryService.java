@@ -39,50 +39,58 @@ public class DeliveryService {
     private final ResidentRepository residentRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+   private final PermissionService permissionService;
 
-    @Transactional(readOnly = true)
-    public DeliveryPageResponse getDeliveries(Authentication authentication, int page, int size) {
-        Pageable pageable = createPageable(page, size);
-        Page<DeliveryResponse> deliveries;
+@Transactional(readOnly = true)
+public DeliveryPageResponse getDeliveries(
+        Authentication authentication,
+        int page,
+        int size
+) {
+    Pageable pageable = createPageable(page, size);
+    Page<DeliveryResponse> deliveries;
 
-        if (hasFullView(authentication)) {
-            deliveries = deliveryRepository
-                    .findAllByOrderByReceivedAtDesc(pageable)
-                    .map(this::toResponse);
-        } else {
-            deliveries = deliveryRepository
-                    .findByResident_User_EmailIgnoreCaseOrderByReceivedAtDesc(
-                            authentication.getName(),
-                            pageable
-                    )
-                    .map(this::toResponse);
-        }
-
-        return DeliveryPageResponse.from(deliveries);
+    if (permissionService.hasPermission(authentication, "DELIVERIES_VIEW")) {
+        deliveries = deliveryRepository
+                .findAllByOrderByReceivedAtDesc(pageable)
+                .map(this::toResponse);
+    } else {
+        deliveries = deliveryRepository
+                .findByResident_User_EmailIgnoreCaseOrderByReceivedAtDesc(
+                        authentication.getName(),
+                        pageable
+                )
+                .map(this::toResponse);
     }
 
-    @Transactional(readOnly = true)
-    public DeliveryResponse getDelivery(UUID deliveryId, Authentication authentication) {
-        Delivery delivery;
+    return DeliveryPageResponse.from(deliveries);
+}
 
-        if (hasFullView(authentication)) {
-            delivery = deliveryRepository.findById(deliveryId)
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Delivery not found: " + deliveryId
-                    ));
-        } else {
-            delivery = deliveryRepository
-                    .findByIdAndResident_User_EmailIgnoreCase(
-                            deliveryId,
-                            authentication.getName()
-                    )
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Delivery not found: " + deliveryId
-                    ));
-        }
+@Transactional(readOnly = true)
+public DeliveryResponse getDelivery(
+        UUID deliveryId,
+        Authentication authentication
+) {
+    Delivery delivery;
 
-        return toResponse(delivery);
+    if (permissionService.hasPermission(authentication, "DELIVERIES_VIEW")) {
+        delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Delivery not found: " + deliveryId
+                ));
+    } else {
+        delivery = deliveryRepository
+                .findByIdAndResident_User_EmailIgnoreCase(
+                        deliveryId,
+                        authentication.getName()
+                )
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Delivery not found: " + deliveryId
+                ));
     }
+
+    return toResponse(delivery);
+}
 
     @Transactional
     public DeliveryResponse createDelivery(
