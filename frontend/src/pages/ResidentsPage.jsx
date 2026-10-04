@@ -1,4 +1,6 @@
+// //---------------------- M24.8.10 -----------------------
 // import { useCallback, useEffect, useMemo, useState } from 'react'
+// import { useSearchParams } from 'react-router-dom'
 // import Modal from '../components/Modal.jsx'
 // import TableAction from '../components/TableAction.jsx'
 // import TableActions from '../components/TableActions.jsx'
@@ -55,6 +57,9 @@
 //   const role = user?.roles?.[0] || user?.role
 //   const isAdministrator = role === 'ADMINISTRATOR'
 //   const canEdit = ['ADMINISTRATOR', 'RESIDENT', 'OWNER'].includes(role)
+
+//   //M24.8.10
+// const [searchParams, setSearchParams] = useSearchParams()
 
 //   const [residents, setResidents] = useState([])
 //   const [users, setUsers] = useState([])
@@ -175,6 +180,20 @@
 //       setDetailLoading(false)
 //     }
 //   }
+
+// //M24.8.10
+// useEffect(() => {
+//   const openId = searchParams.get('openId')
+
+//   if (!openId) return
+
+//   viewResident(openId)
+
+//   const nextParams = new URLSearchParams(searchParams)
+//   nextParams.delete('openId')
+//   setSearchParams(nextParams, { replace: true })
+// }, [searchParams, setSearchParams])
+
 
 //   const closeDetails = () => {
 //     if (!detailLoading) {
@@ -632,7 +651,7 @@
 
 //---------------------- M24.8.10 -----------------------
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Modal from '../components/Modal.jsx'
 import TableAction from '../components/TableAction.jsx'
 import TableActions from '../components/TableActions.jsx'
@@ -691,7 +710,8 @@ function ResidentsPage() {
   const canEdit = ['ADMINISTRATOR', 'RESIDENT', 'OWNER'].includes(role)
 
   //M24.8.10
-const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [residents, setResidents] = useState([])
   const [users, setUsers] = useState([])
@@ -813,7 +833,7 @@ const [searchParams, setSearchParams] = useSearchParams()
     }
   }
 
-//M24.8.10
+// M24.8.10
 useEffect(() => {
   const openId = searchParams.get('openId')
 
@@ -821,17 +841,26 @@ useEffect(() => {
 
   viewResident(openId)
 
-  searchParams.delete('openId')
-  setSearchParams(searchParams, { replace: true })
+  const nextParams = new URLSearchParams(searchParams)
+  nextParams.delete('openId')
+
+  setSearchParams(nextParams, { replace: true })
 }, [searchParams, setSearchParams])
 
+const closeDetails = () => {
+  if (detailLoading) return
 
-  const closeDetails = () => {
-    if (!detailLoading) {
-      setSelectedResident(null)
-      setDetailError('')
-    }
+  const returnTo = searchParams.get('returnTo')
+
+  if (returnTo === 'unit-lookup') {
+    navigate(-1)
+    return
   }
+
+  setSelectedResident(null)
+  setDetailError('')
+  setEditMode(false)
+}
 
   const startProfileEdit = (resident) => {
     setProfileResidentId(resident.id)
