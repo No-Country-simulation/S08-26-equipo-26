@@ -1326,20 +1326,34 @@ function IncidentsPage() {
     setSearchParams(nextParams, { replace: true })
   }, [searchParams, setSearchParams])
 
-  const closeDetails = () => {
-    if (detailLoading || actionLoading) return
-
-    const returnTo = searchParams.get('returnTo')
-
-    setSelectedIncident(null)
-    setDetailError('')
-    setEditMode(false)
-    setStatusTarget('')
-
-    if (returnTo === 'unit-lookup') {
-      navigate(-1)
-    }
+const closeDetails = () => {
+  if (detailLoading || actionLoading) {
+    return
   }
+
+  const returnTo = searchParams.get('returnTo')
+  const lookupQuery = searchParams.get('lookupQuery')
+  const lookupUnitId = searchParams.get('lookupUnitId')
+
+  if (
+    returnTo === 'unit-lookup' &&
+    lookupQuery &&
+    lookupUnitId
+  ) {
+    navigate(
+      `/dashboard/unit-lookup?query=${encodeURIComponent(
+        lookupQuery
+      )}&unitId=${encodeURIComponent(lookupUnitId)}`
+    )
+
+    return
+  }
+
+  setSelectedIncident(null)
+  setDetailError('')
+  setEditMode(false)
+  setAssignedStaffId('')
+}
 
   const saveEdit = async (event) => {
     event.preventDefault()
