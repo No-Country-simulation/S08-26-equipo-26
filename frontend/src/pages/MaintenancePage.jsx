@@ -1281,20 +1281,10 @@ function MaintenancePage() {
 
       openItem(openId);
 
-      /*
-       * Remove only openId.
-       *
-       * IMPORTANT:
-       * returnTo=unit-lookup remains in the URL.
-       * That is what handleClose() uses to determine whether
-       * this modal was opened from Unit Lookup.
-       */
       const nextParams = new URLSearchParams(searchParams);
       nextParams.delete("openId");
 
-      setSearchParams(nextParams, {
-         replace: true,
-      });
+      setSearchParams(nextParams, { replace: true })
    }, [searchParams, setSearchParams]);
 
    const saveEdit = async () => {
@@ -1399,31 +1389,35 @@ function MaintenancePage() {
    const canClose = !!selected && !actionLoading;
 
    // M24.8.10
-   const handleClose = () => {
-      if (!canClose) return;
+const handleClose = () => {
+  if (!canClose) {
+    return
+  }
 
-      /*
-       * Unit Lookup opens this page with:
-       *
-       * ?openId=<id>&returnTo=unit-lookup
-       *
-       * The openId effect removes only openId, so returnTo
-       * remains available here.
-       */
-      const returnTo = searchParams.get("returnTo");
+  const returnTo = searchParams.get('returnTo')
+  const lookupQuery = searchParams.get('lookupQuery')
+  const lookupUnitId = searchParams.get('lookupUnitId')
 
-      if (returnTo === "unit-lookup") {
-         navigate(-1);
-         return;
-      }
+  if (
+    returnTo === 'unit-lookup' &&
+    lookupQuery &&
+    lookupUnitId
+  ) {
+    navigate(
+      `/dashboard/unit-lookup?query=${encodeURIComponent(
+        lookupQuery
+      )}&unitId=${encodeURIComponent(lookupUnitId)}`
+    )
 
-      // Normal Maintenance-page modal behavior.
-      setSelected(null);
-      setDetailError("");
-      setEditMode(false);
-      setStatusTarget("");
-      setResolution("");
-   };
+    return
+  }
+
+  setSelected(null)
+  setDetailError('')
+  setEditMode(false)
+  setStatusTarget('')
+  setResolution('')
+}
 
    if (!canAccess) {
       return (

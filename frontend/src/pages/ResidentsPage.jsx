@@ -848,12 +848,25 @@ useEffect(() => {
 }, [searchParams, setSearchParams])
 
 const closeDetails = () => {
-  if (detailLoading) return
+  if (detailLoading) {
+    return
+  }
 
   const returnTo = searchParams.get('returnTo')
+  const lookupQuery = searchParams.get('lookupQuery')
+  const lookupUnitId = searchParams.get('lookupUnitId')
 
-  if (returnTo === 'unit-lookup') {
-    navigate(-1)
+  if (
+    returnTo === 'unit-lookup' &&
+    lookupQuery &&
+    lookupUnitId
+  ) {
+    navigate(
+      `/dashboard/unit-lookup?query=${encodeURIComponent(
+        lookupQuery
+      )}&unitId=${encodeURIComponent(lookupUnitId)}`
+    )
+
     return
   }
 

@@ -233,18 +233,30 @@ useEffect(() => {
 
 
 const closeDetails = () => {
-  if (detailLoading || actionLoading) return
-
-  const returnTo = searchParams.get('returnTo')
-
-  if (returnTo === 'unit-lookup') {
-    navigate(-1)
+  if (detailLoading || actionLoading) {
     return
   }
 
-  setSelected(null)
+  const returnTo = searchParams.get('returnTo')
+  const lookupQuery = searchParams.get('lookupQuery')
+  const lookupUnitId = searchParams.get('lookupUnitId')
+
+  if (
+    returnTo === 'unit-lookup' &&
+    lookupQuery &&
+    lookupUnitId
+  ) {
+    navigate(
+      `/dashboard/unit-lookup?query=${encodeURIComponent(
+        lookupQuery
+      )}&unitId=${encodeURIComponent(lookupUnitId)}`
+    )
+
+    return
+  }
+
+  setSelectedMove(null)
   setDetailError('')
-  setEditMode(false)
 }
 
   const openStatus = (status) => {

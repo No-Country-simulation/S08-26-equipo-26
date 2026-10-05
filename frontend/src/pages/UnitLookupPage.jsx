@@ -1,6 +1,6 @@
 // //------------------ M24.8.10 -----------------------
 // import { useEffect, useState } from 'react'
-// import { useNavigate } from 'react-router-dom'
+// import { useNavigate, useSearchParams } from 'react-router-dom'
 
 // import { getUnitDashboard, lookupUnits } from '../api/unitsApi.js'
 // import { useTranslation } from '../i18n/i18n.js'
@@ -74,6 +74,7 @@
 // function UnitLookupPage() {
 //   const { t } = useTranslation()
 //   const navigate = useNavigate()
+//   const [searchParams, setSearchParams] = useSearchParams()
 
 //   const [query, setQuery] = useState('')
 //   const [results, setResults] = useState([])
@@ -83,6 +84,20 @@
 //   const [loadingDashboard, setLoadingDashboard] = useState(false)
 //   const [error, setError] = useState('')
 
+//   /*
+//    * Restore the search text when returning from another module.
+//    */
+//   useEffect(() => {
+//     const restoredQuery = searchParams.get('query')
+
+//     if (restoredQuery && restoredQuery !== query) {
+//       setQuery(restoredQuery)
+//     }
+//   }, [searchParams, query])
+
+//   /*
+//    * Search units.
+//    */
 //   useEffect(() => {
 //     const normalized = query.trim()
 
@@ -122,6 +137,13 @@
 //   }, [query, t])
 
 //   const openUnit = async (unit) => {
+//     const nextParams = new URLSearchParams({
+//       query: query.trim(),
+//       unitId: unit.id,
+//     })
+
+//     setSearchParams(nextParams, { replace: true })
+
 //     setSelectedUnit(unit)
 //     setDashboard(null)
 //     setLoadingDashboard(true)
@@ -140,12 +162,46 @@
 //   }
 
 //   /*
+//    * Restore the selected apartment/workspace when returning from
+//    * another module.
+//    *
+//    * The URL contains:
+//    *   query=...
+//    *   unitId=...
+//    *
+//    * Once the search results are available, find that unit and reopen
+//    * the normal Unit Lookup workspace.
+//    */
+//   useEffect(() => {
+//     const unitId = searchParams.get('unitId')
+
+//     if (!unitId || !results.length || selectedUnit) {
+//       return
+//     }
+
+//     const matchingUnit = results.find((unit) => unit.id === unitId)
+
+//     if (!matchingUnit) {
+//       return
+//     }
+
+//     openUnit(matchingUnit)
+
+//     const nextParams = new URLSearchParams(searchParams)
+//     nextParams.delete('unitId')
+//     setSearchParams(nextParams, { replace: true })
+//   }, [results, searchParams, selectedUnit, setSearchParams])
+
+//   /*
 //    * M24.10
 //    *
 //    * Unit Lookup does not duplicate the detail modals from the mother pages.
 //    * Instead, it navigates to the owning module and passes the record ID
-//    * through the URL. The mother page then loads its normal GET-by-ID
-//    * endpoint and opens its existing shared Modal.
+//    * through the URL.
+//    *
+//    * returnTo=unit-lookup tells the mother page that the record was opened
+//    * from this workspace. The mother page can then return here when the
+//    * shared detail modal is closed.
 //    */
 //   const openLinkedRecord = (type, id) => {
 //     if (!id) return
@@ -162,7 +218,12 @@
 
 //     if (!route) return
 
-//     navigate(`${route}?openId=${encodeURIComponent(id)}`)
+//     const params = new URLSearchParams({
+//       openId: id,
+//       returnTo: 'unit-lookup',
+//     })
+
+//     navigate(`${route}?${params.toString()}`)
 //   }
 
 //   const resetLookup = () => {
@@ -171,6 +232,12 @@
 //     setQuery('')
 //     setResults([])
 //     setError('')
+
+//     const nextParams = new URLSearchParams(searchParams)
+//     nextParams.delete('query')
+//     nextParams.delete('unitId')
+
+//     setSearchParams(nextParams, { replace: true })
 //   }
 
 //   const current =
@@ -674,7 +741,7 @@
 
 
 //------------------ M24.8.10 -----------------------
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { getUnitDashboard, lookupUnits } from '../api/unitsApi.js'
@@ -759,6 +826,9 @@ function UnitLookupPage() {
   const [loadingDashboard, setLoadingDashboard] = useState(false)
   const [error, setError] = useState('')
 
+  const searchInputRef = useRef(null)
+  const lastSearchedQueryRef = useRef('')
+
   /*
    * Restore the search text when returning from another module.
    */
@@ -772,12 +842,55 @@ function UnitLookupPage() {
 
   /*
    * Search units.
+   *
+   * One character is enough for a valid lookup. This is important for
+   * buildings where units are numbered sequentially, for example 1–50.
+   */
+  const searchUnits = async (value) => {
+    const normalized = value.trim()
+
+    if (!normalized) {
+      setResults([])
+      setError('')
+      lastSearchedQueryRef.current = ''
+      return
+    }
+
+    setLoadingResults(true)
+    setError('')
+
+    try {
+      const response = await lookupUnits(normalized)
+
+      setResults(Array.isArray(response) ? response : [])
+      lastSearchedQueryRef.current = normalized
+    } catch (requestError) {
+      setError(requestError.message || t('Unable to search units.'))
+      setResults([])
+      lastSearchedQueryRef.current = normalized
+    } finally {
+      setLoadingResults(false)
+    }
+  }
+
+  /*
+   * Search automatically after the user stops typing.
    */
   useEffect(() => {
     const normalized = query.trim()
 
-    if (normalized.length < 2) {
+    if (!normalized) {
       setResults([])
+      setError('')
+      lastSearchedQueryRef.current = ''
+      return undefined
+    }
+
+    /*
+     * Avoid repeating the same request when the explicit search button
+     * has already searched this exact value.
+     */
+    if (normalized === lastSearchedQueryRef.current) {
       return undefined
     }
 
@@ -792,11 +905,13 @@ function UnitLookupPage() {
 
         if (!cancelled) {
           setResults(Array.isArray(response) ? response : [])
+          lastSearchedQueryRef.current = normalized
         }
       } catch (requestError) {
         if (!cancelled) {
           setError(requestError.message || t('Unable to search units.'))
           setResults([])
+          lastSearchedQueryRef.current = normalized
         }
       } finally {
         if (!cancelled) {
@@ -810,6 +925,19 @@ function UnitLookupPage() {
       window.clearTimeout(timer)
     }
   }, [query, t])
+
+  const handleSearch = async (event) => {
+    event.preventDefault()
+
+    const normalized = query.trim()
+
+    if (!normalized) {
+      searchInputRef.current?.focus()
+      return
+    }
+
+    await searchUnits(normalized)
+  }
 
   const openUnit = async (unit) => {
     const nextParams = new URLSearchParams({
@@ -907,12 +1035,17 @@ function UnitLookupPage() {
     setQuery('')
     setResults([])
     setError('')
+    lastSearchedQueryRef.current = ''
 
     const nextParams = new URLSearchParams(searchParams)
     nextParams.delete('query')
     nextParams.delete('unitId')
 
     setSearchParams(nextParams, { replace: true })
+
+    window.setTimeout(() => {
+      searchInputRef.current?.focus()
+    }, 0)
   }
 
   const current =
@@ -951,37 +1084,37 @@ function UnitLookupPage() {
             )}
           </p>
         </div>
-
-        {selectedUnit && (
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={resetLookup}
-          >
-            {t('New search')}
-          </button>
-        )}
       </div>
 
       <section className="data-panel">
-        <label className="unit-lookup-search">
-          <span>{t('Search by unit, building name or building code')}</span>
+        <form onSubmit={handleSearch} className="unit-lookup-search-row">
+          <label className="unit-lookup-search" >
+            <span>{t('Search by unit, building name or building code')}</span>
 
-          <div className="unit-lookup-input-wrap">
-            <Icon name="search" size={18} />
+            <div className="unit-lookup-input-wrap">
+              <button
+                className="unit-lookup-search-button"
+                type="submit"
+                aria-label={t('Search units')}
+                title={t('Search')}
+              >
+                <Icon name="search" size={18} />
+              </button>
 
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t('e.g. 4B, Tower A, TWR-A')}
-              aria-label={t('Unit lookup search')}
-            />
-          </div>
-        </label>
+              <input
+                ref={searchInputRef}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t('e.g. 4B, Tower A, TWR-A')}
+                aria-label={t('Unit lookup search')}
+              />
+            </div>
+          </label>
+        </form>
 
-        {query.trim().length > 0 && query.trim().length < 2 && (
+        {query.trim().length === 0 && (
           <p className="muted lookup-hint">
-            {t('Enter at least 2 characters.')}
+            {t('Enter a unit number, building name or building code.')}
           </p>
         )}
 
@@ -992,7 +1125,7 @@ function UnitLookupPage() {
         )}
 
         {!loadingResults &&
-          query.trim().length >= 2 &&
+          query.trim().length >= 1 &&
           !selectedUnit &&
           (results.length > 0 ? (
             <div className="lookup-results">
@@ -1030,6 +1163,16 @@ function UnitLookupPage() {
               {t('No matching units found.')}
             </div>
           ))}
+
+        <div className="unit-lookup-actions">
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={resetLookup}
+          >
+            {t('New search')}
+          </button>
+        </div>
       </section>
 
       {error && (

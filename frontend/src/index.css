@@ -5175,5 +5175,69 @@ body {
   }
 }
 
+/* =========================================================
+   M24.8.10
+   Unit Lookup Click
+   ========================================================= */
+.unit-lookup-search-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  width: 100%;
+}
 
+.unit-lookup-search {
+  flex: 1 1 auto;
+  min-width: 240px;
+}
 
+.unit-lookup-actions {
+  flex: 0 0 auto;
+}
+
+.unit-lookup-input-wrap {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.unit-lookup-input-wrap input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.unit-lookup-search-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.unit-lookup-search-button:hover {
+  opacity: 0.8;
+}
+
+@media (max-width: 700px) {
+  .unit-lookup-search-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .unit-lookup-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .unit-lookup-actions {
+    width: 100%;
+  }
+
+  .unit-lookup-actions .button {
+    width: 100%;
+  }
+}
