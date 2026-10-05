@@ -21,7 +21,7 @@ public class UnitLookupService {
     public List<UnitLookupResponse> search(String query) {
         String normalized = query == null ? "" : query.trim();
 
-        if (normalized.length() < 2) {
+        if (normalized.isEmpty()) {
             return List.of();
         }
 
