@@ -233,6 +233,20 @@ useEffect(() => {
 
 
 const closeDetails = () => {
+  if (detailLoading || actionLoading) return
+
+  const returnTo = searchParams.get('returnTo')
+
+  if (returnTo === 'unit-lookup') {
+    navigate(-1)
+    return
+  }
+
+  setSelected(null)
+  setDetailError('')
+}
+
+const closeDetails2 = () => {
   if (detailLoading || actionLoading) {
     return
   }
@@ -255,7 +269,7 @@ const closeDetails = () => {
     return
   }
 
-  setSelectedMove(null)
+  setSelected(null)
   setDetailError('')
 }
 
@@ -450,7 +464,7 @@ const closeDetails = () => {
         </form>
       </Modal>
 
-      <Modal open={detailLoading || Boolean(selected)} title={t('Move request')} onClose={closeDetails}>
+      <Modal open={detailLoading || Boolean(selected)} title={t('Move request')} onClose={closeDetails2}>
         {detailLoading ? (
           <div className="feedback feedback-info">{t('Loading...')}</div>
         ) : detailError && !selected ? (
