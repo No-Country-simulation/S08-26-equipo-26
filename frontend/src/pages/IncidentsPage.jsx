@@ -1,5 +1,9 @@
-//--------------------- M24.8.3 ---------------------------
+//-------------------- M24.8.10 ---------------------
 import { useCallback, useEffect, useState } from 'react'
+import {
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom'
 
 import { useTranslation } from '../i18n/i18n.js'
 import { useAuth } from '../auth/AuthContext.jsx'
@@ -112,7 +116,13 @@ function IncidentForm({
       {mode === 'create' && (
         <label className="form-field">
           <span>{t('Unit')}</span>
-          <select name="unitId" value={form.unitId} onChange={onChange} disabled={saving} required>
+          <select
+            name="unitId"
+            value={form.unitId}
+            onChange={onChange}
+            disabled={saving}
+            required
+          >
             <option value="">{t('Select unit')}</option>
             {unitOptions.map((unit) => (
               <option key={unit.unitId} value={unit.unitId}>
@@ -126,9 +136,17 @@ function IncidentForm({
       <div className="form-grid-2">
         <label className="form-field">
           <span>{t('Severity')}</span>
-          <select name="severity" value={form.severity} onChange={onChange} disabled={saving} required>
+          <select
+            name="severity"
+            value={form.severity}
+            onChange={onChange}
+            disabled={saving}
+            required
+          >
             {SEVERITIES.map((severity) => (
-              <option key={severity} value={severity}>{t(severity)}</option>
+              <option key={severity} value={severity}>
+                {t(severity)}
+              </option>
             ))}
           </select>
         </label>
@@ -172,10 +190,20 @@ function IncidentForm({
       </label>
 
       <div className="entity-form-actions">
-        <button className="button button-secondary" type="button" onClick={onCancel} disabled={saving}>
+        <button
+          className="button button-secondary"
+          type="button"
+          onClick={onCancel}
+          disabled={saving}
+        >
           {t('Cancel')}
         </button>
-        <button className="button button-primary" type="submit" disabled={saving}>
+
+        <button
+          className="button button-primary"
+          type="submit"
+          disabled={saving}
+        >
           {saving ? t('Saving...') : t('Save')}
         </button>
       </div>
@@ -186,6 +214,7 @@ function IncidentForm({
 function IncidentsPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const role = user?.roles?.[0] || user?.role
 
   const canCreate = ['ADMINISTRATOR', 'RECEPTION', 'RESIDENT'].includes(role)
@@ -222,6 +251,9 @@ function IncidentsPage() {
   const [statusResolution, setStatusResolution] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
+  // M24.8.10
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const loadIncidents = useCallback(async (targetPage = 0) => {
     if (!canList) return
 
@@ -230,7 +262,10 @@ function IncidentsPage() {
 
     try {
       const response = await getIncidents(targetPage, PAGE_SIZE)
-      setIncidents(Array.isArray(response?.content) ? response.content : [])
+
+      setIncidents(
+        Array.isArray(response?.content) ? response.content : [],
+      )
       setPage(response?.page ?? targetPage)
       setTotalPages(response?.totalPages ?? 0)
       setTotalElements(response?.totalElements ?? 0)
@@ -252,7 +287,9 @@ function IncidentsPage() {
       const response = await getIncidentUnitOptions()
       setUnitOptions(Array.isArray(response) ? response : [])
     } catch (requestError) {
-      setOptionsError(requestError.message || t('Unable to load incident units.'))
+      setOptionsError(
+        requestError.message || t('Unable to load incident units.'),
+      )
     } finally {
       setOptionsLoading(false)
     }
@@ -286,7 +323,11 @@ function IncidentsPage() {
 
   const handleCreateChange = (event) => {
     const { name, value } = event.target
-    setCreateForm((current) => ({ ...current, [name]: value }))
+
+    setCreateForm((current) => ({
+      ...current,
+      [name]: value,
+    }))
   }
 
   const handleCreate = async (event) => {
@@ -307,9 +348,14 @@ function IncidentsPage() {
       setShowCreate(false)
       resetCreate()
       setSuccessMessage(t('Incident created successfully.'))
-      if (canList) await loadIncidents(0)
+
+      if (canList) {
+        await loadIncidents(0)
+      }
     } catch (requestError) {
-      setFormError(requestError.message || t('Unable to create incident.'))
+      setFormError(
+        requestError.message || t('Unable to create incident.'),
+      )
     } finally {
       setSaving(false)
     }
@@ -329,47 +375,92 @@ function IncidentsPage() {
       const response = await getIncident(incidentId)
 
       if (!response || typeof response !== 'object') {
-        throw new Error(t('The incident details could not be loaded.'))
+        throw new Error(
+          t('The incident details could not be loaded.'),
+        )
       }
 
       setSelectedIncident(response)
+
       setEditForm({
         title: response.title || '',
         description: response.description || '',
         severity: response.severity || 'MEDIUM',
         occurredAt: toLocalDateTimeInput(response.occurredAt),
       })
+
       setAssignedStaffId(response.assignedToStaffId || '')
 
       if (canManage) {
         setStaffLoading(true)
+
         try {
           const staff = await getAssignableStaff(response.buildingId)
           setStaffOptions(Array.isArray(staff) ? staff : [])
         } catch (staffError) {
-          setDetailError(staffError.message || t('Unable to load assignable staff.'))
+          setDetailError(
+            staffError.message ||
+              t('Unable to load assignable staff.'),
+          )
         } finally {
           setStaffLoading(false)
         }
       }
     } catch (requestError) {
-      setDetailError(requestError.message || t('Unable to load incident details.'))
+      setDetailError(
+        requestError.message ||
+          t('Unable to load incident details.'),
+      )
     } finally {
       setDetailLoading(false)
     }
   }
 
-  const closeDetails = () => {
-    if (!detailLoading && !actionLoading) {
-      setSelectedIncident(null)
-      setDetailError('')
-      setEditMode(false)
-      setStatusTarget('')
-    }
+  // M24.8.10
+  useEffect(() => {
+    const openId = searchParams.get('openId')
+
+    if (!openId) return
+
+    openIncident(openId)
+
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('openId')
+    setSearchParams(nextParams, { replace: true })
+  }, [searchParams, setSearchParams])
+
+const closeDetails = () => {
+  if (detailLoading || actionLoading) {
+    return
   }
+
+  const returnTo = searchParams.get('returnTo')
+  const lookupQuery = searchParams.get('lookupQuery')
+  const lookupUnitId = searchParams.get('lookupUnitId')
+
+  if (
+    returnTo === 'unit-lookup' &&
+    lookupQuery &&
+    lookupUnitId
+  ) {
+    navigate(
+      `/dashboard/unit-lookup?query=${encodeURIComponent(
+        lookupQuery
+      )}&unitId=${encodeURIComponent(lookupUnitId)}`
+    )
+
+    return
+  }
+
+  setSelectedIncident(null)
+  setDetailError('')
+  setEditMode(false)
+  setAssignedStaffId('')
+}
 
   const saveEdit = async (event) => {
     event.preventDefault()
+
     if (!selectedIncident?.id) return
 
     setActionLoading(true)
@@ -383,12 +474,16 @@ function IncidentsPage() {
         severity: editForm.severity,
         occurredAt: fromLocalDateTimeInput(editForm.occurredAt),
       })
+
       setSelectedIncident(updated)
       setEditMode(false)
       setSuccessMessage(t('Incident updated successfully.'))
+
       await loadIncidents(page)
     } catch (requestError) {
-      setDetailError(requestError.message || t('Unable to update incident.'))
+      setDetailError(
+        requestError.message || t('Unable to update incident.'),
+      )
     } finally {
       setActionLoading(false)
     }
@@ -406,11 +501,18 @@ function IncidentsPage() {
         selectedIncident.id,
         assignedStaffId || null,
       )
+
       setSelectedIncident(updated)
-      setSuccessMessage(t('Incident assignment updated successfully.'))
+      setSuccessMessage(
+        t('Incident assignment updated successfully.'),
+      )
+
       await loadIncidents(page)
     } catch (requestError) {
-      setDetailError(requestError.message || t('Unable to update incident assignment.'))
+      setDetailError(
+        requestError.message ||
+          t('Unable to update incident assignment.'),
+      )
     } finally {
       setActionLoading(false)
     }
@@ -421,7 +523,9 @@ function IncidentsPage() {
 
     if (targetStatus === 'RESOLVED' && !statusResolution.trim()) {
       setStatusTarget(targetStatus)
-      setDetailError(t('A resolution is required before resolving the incident.'))
+      setDetailError(
+        t('A resolution is required before resolving the incident.'),
+      )
       return
     }
 
@@ -435,13 +539,21 @@ function IncidentsPage() {
         targetStatus,
         statusResolution.trim() || null,
       )
+
       setSelectedIncident(updated)
       setStatusTarget('')
       setStatusResolution('')
-      setSuccessMessage(t('Incident status updated successfully.'))
+
+      setSuccessMessage(
+        t('Incident status updated successfully.'),
+      )
+
       await loadIncidents(page)
     } catch (requestError) {
-      setDetailError(requestError.message || t('Unable to update incident status.'))
+      setDetailError(
+        requestError.message ||
+          t('Unable to update incident status.'),
+      )
     } finally {
       setActionLoading(false)
     }
@@ -451,18 +563,39 @@ function IncidentsPage() {
     if (!selectedIncident?.status) return []
 
     if (canProviderUpdate) {
-      if (selectedIncident.status === 'ASSIGNED') return ['IN_PROGRESS']
-      if (selectedIncident.status === 'IN_PROGRESS') return ['RESOLVED']
-      if (selectedIncident.status === 'RESOLVED') return ['CLOSED']
+      if (selectedIncident.status === 'ASSIGNED') {
+        return ['IN_PROGRESS']
+      }
+
+      if (selectedIncident.status === 'IN_PROGRESS') {
+        return ['RESOLVED']
+      }
+
+      if (selectedIncident.status === 'RESOLVED') {
+        return ['CLOSED']
+      }
+
       return []
     }
 
     if (!canManage) return []
 
-    if (selectedIncident.status === 'ASSIGNED') return ['IN_PROGRESS', 'CANCELLED']
-    if (selectedIncident.status === 'IN_PROGRESS') return ['RESOLVED', 'CANCELLED']
-    if (selectedIncident.status === 'RESOLVED') return ['CLOSED', 'IN_PROGRESS']
-    if (selectedIncident.status === 'CREATED') return ['CANCELLED']
+    if (selectedIncident.status === 'ASSIGNED') {
+      return ['IN_PROGRESS', 'CANCELLED']
+    }
+
+    if (selectedIncident.status === 'IN_PROGRESS') {
+      return ['RESOLVED', 'CANCELLED']
+    }
+
+    if (selectedIncident.status === 'RESOLVED') {
+      return ['CLOSED', 'IN_PROGRESS']
+    }
+
+    if (selectedIncident.status === 'CREATED') {
+      return ['CANCELLED']
+    }
+
     return []
   })()
 
@@ -475,9 +608,12 @@ function IncidentsPage() {
             <h2>{t('Incidents')}</h2>
           </div>
         </div>
+
         <article className="panel panel-wide">
           <div className="feedback feedback-info">
-            {t('Your role does not currently have access to this module.')}
+            {t(
+              'Your role does not currently have access to this module.',
+            )}
           </div>
         </article>
       </section>
@@ -489,35 +625,63 @@ function IncidentsPage() {
       <div className="module-page-header">
         <div>
           <p className="eyebrow">{t('INCIDENTS')}</p>
+
           <h2>{t('Incidents')}</h2>
+
           <p className="muted">
-            {t('Report, track and resolve operational incidents with full traceability.')}
+            {t(
+              'Report, track and resolve operational incidents with full traceability.',
+            )}
           </p>
         </div>
 
         {canCreate && (
-          <button className="button button-primary" type="button" onClick={openCreate}>
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={openCreate}
+          >
             + {t('Report incident')}
           </button>
         )}
       </div>
 
       {successMessage && (
-        <div className="feedback feedback-success" role="status">{successMessage}</div>
+        <div
+          className="feedback feedback-success"
+          role="status"
+        >
+          {successMessage}
+        </div>
       )}
+
       {error && (
-        <div className="feedback feedback-error" role="alert">{error}</div>
+        <div
+          className="feedback feedback-error"
+          role="alert"
+        >
+          {error}
+        </div>
       )}
+
       {optionsError && (
-        <div className="feedback feedback-warning" role="alert">{optionsError}</div>
+        <div
+          className="feedback feedback-warning"
+          role="alert"
+        >
+          {optionsError}
+        </div>
       )}
 
       {!canList ? (
         <section className="data-panel">
           <div className="module-empty-state compact-empty-state">
             <h3>{t('Incident reporting available')}</h3>
+
             <p className="muted">
-              {t('Reception can report an incident. The incident directory is available to authorized management, resident, owner and provider roles.')}
+              {t(
+                'Reception can report an incident. The incident directory is available to authorized management, resident, owner and provider roles.',
+              )}
             </p>
           </div>
         </section>
@@ -525,21 +689,30 @@ function IncidentsPage() {
         <section className="data-panel">
           <div className="data-panel-header">
             <div>
-              <p className="eyebrow">{t('INCIDENT DIRECTORY')}</p>
+              <p className="eyebrow">
+                {t('INCIDENT DIRECTORY')}
+              </p>
+
               <h3>{t('Incidents')}</h3>
             </div>
+
             <span className="status-pill">
               {totalElements} {t('incidents')}
             </span>
           </div>
 
           {loading ? (
-            <div className="module-empty-state compact-empty-state">{t('Loading...')}</div>
+            <div className="module-empty-state compact-empty-state">
+              {t('Loading...')}
+            </div>
           ) : incidents.length === 0 ? (
             <div className="module-empty-state compact-empty-state">
               <h3>{t('No incidents found')}</h3>
+
               <p className="muted">
-                {t('There are no incident records available for your role.')}
+                {t(
+                  'There are no incident records available for your role.',
+                )}
               </p>
             </div>
           ) : (
@@ -556,36 +729,67 @@ function IncidentsPage() {
                     <th>{t('Actions')}</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {incidents.map((incident) => (
                     <tr key={incident.id}>
                       <td>
                         <strong>{incident.title}</strong>
+
                         <span className="table-meta">
-                          {incident.buildingCode} · {incident.description?.slice(0, 70)}
-                          {incident.description?.length > 70 ? '…' : ''}
+                          {incident.buildingCode} ·{' '}
+                          {incident.description?.slice(0, 70)}
+                          {incident.description?.length > 70
+                            ? '…'
+                            : ''}
                         </span>
                       </td>
+
                       <td>{incident.unitNumber}</td>
+
                       <td>
-                        <span className={`status-badge ${severityClass(incident.severity)}`}>
-                          {translateValue(t, incident.severity)}
+                        <span
+                          className={`status-badge ${severityClass(
+                            incident.severity,
+                          )}`}
+                        >
+                          {translateValue(
+                            t,
+                            incident.severity,
+                          )}
                         </span>
                       </td>
+
                       <td>
-                        <span className={`status-badge ${statusClass(incident.status)}`}>
-                          {translateValue(t, incident.status)}
+                        <span
+                          className={`status-badge ${statusClass(
+                            incident.status,
+                          )}`}
+                        >
+                          {translateValue(
+                            t,
+                            incident.status,
+                          )}
                         </span>
                       </td>
-                      <td>{incident.assignedToName || '—'}</td>
-                      <td>{formatDateTime(incident.createdAt)}</td>
+
+                      <td>
+                        {incident.assignedToName || '—'}
+                      </td>
+
+                      <td>
+                        {formatDateTime(incident.createdAt)}
+                      </td>
+
                       <td>
                         <TableActions moreLabel={t('More')}>
                           <TableAction
                             icon="eye"
                             label={t('View')}
                             variant="view"
-                            onClick={() => openIncident(incident.id)}
+                            onClick={() =>
+                              openIncident(incident.id)
+                            }
                           />
                         </TableActions>
                       </td>
@@ -598,7 +802,10 @@ function IncidentsPage() {
 
           {totalPages > 1 && (
             <div className="pagination-bar">
-              <span>{t('Page')} {page + 1} {t('of')} {totalPages}</span>
+              <span>
+                {t('Page')} {page + 1} {t('of')} {totalPages}
+              </span>
+
               <div className="table-actions">
                 <button
                   className="button button-secondary button-small"
@@ -608,11 +815,14 @@ function IncidentsPage() {
                 >
                   {t('Previous')}
                 </button>
+
                 <button
                   className="button button-secondary button-small"
                   type="button"
                   onClick={() => loadIncidents(page + 1)}
-                  disabled={page >= totalPages - 1 || loading}
+                  disabled={
+                    page >= totalPages - 1 || loading
+                  }
                 >
                   {t('Next')}
                 </button>
@@ -630,7 +840,9 @@ function IncidentsPage() {
         size="large"
       >
         {optionsLoading ? (
-          <div className="modal-loading-state">{t('Loading units...')}</div>
+          <div className="modal-loading-state">
+            {t('Loading units...')}
+          </div>
         ) : (
           <IncidentForm
             mode="create"
@@ -647,16 +859,29 @@ function IncidentsPage() {
       </Modal>
 
       <Modal
-        open={detailLoading || Boolean(selectedIncident) || Boolean(detailError)}
+        open={
+          detailLoading ||
+          Boolean(selectedIncident) ||
+          Boolean(detailError)
+        }
         onClose={closeDetails}
         eyebrow={t('INCIDENTS')}
-        title={editMode ? t('Edit incident') : t('Incident details')}
+        title={
+          editMode
+            ? t('Edit incident')
+            : t('Incident details')
+        }
         size="large"
       >
         {detailLoading ? (
-          <div className="modal-loading-state">{t('Loading...')}</div>
+          <div className="modal-loading-state">
+            {t('Loading...')}
+          </div>
         ) : detailError && !selectedIncident ? (
-          <div className="modal-feedback feedback feedback-error" role="alert">
+          <div
+            className="modal-feedback feedback feedback-error"
+            role="alert"
+          >
             {detailError}
           </div>
         ) : selectedIncident ? (
@@ -680,48 +905,133 @@ function IncidentsPage() {
           ) : (
             <div>
               {detailError && (
-                <div className="modal-feedback feedback feedback-error" role="alert">
+                <div
+                  className="modal-feedback feedback feedback-error"
+                  role="alert"
+                >
                   {detailError}
                 </div>
               )}
 
               <div className="details-grid">
-                <div><span>{t('Incident')}</span><strong>{selectedIncident.title}</strong></div>
+                <div>
+                  <span>{t('Incident')}</span>
+                  <strong>{selectedIncident.title}</strong>
+                </div>
+
                 <div>
                   <span>{t('Status')}</span>
                   <strong>
-                    <span className={`status-badge ${statusClass(selectedIncident.status)}`}>
-                      {translateValue(t, selectedIncident.status)}
+                    <span
+                      className={`status-badge ${statusClass(
+                        selectedIncident.status,
+                      )}`}
+                    >
+                      {translateValue(
+                        t,
+                        selectedIncident.status,
+                      )}
                     </span>
                   </strong>
                 </div>
+
                 <div>
                   <span>{t('Severity')}</span>
                   <strong>
-                    <span className={`status-badge ${severityClass(selectedIncident.severity)}`}>
-                      {translateValue(t, selectedIncident.severity)}
+                    <span
+                      className={`status-badge ${severityClass(
+                        selectedIncident.severity,
+                      )}`}
+                    >
+                      {translateValue(
+                        t,
+                        selectedIncident.severity,
+                      )}
                     </span>
                   </strong>
                 </div>
-                <div><span>{t('Unit')}</span><strong>{selectedIncident.buildingCode} · {selectedIncident.unitNumber}</strong></div>
-                <div><span>{t('Reported by')}</span><strong>{selectedIncident.reportedByName || '—'}</strong></div>
-                <div><span>{t('Assigned to')}</span><strong>{selectedIncident.assignedToName || t('Unassigned')}</strong></div>
-                <div><span>{t('Occurred at')}</span><strong>{formatDateTime(selectedIncident.occurredAt)}</strong></div>
-                <div><span>{t('Created')}</span><strong>{formatDateTime(selectedIncident.createdAt)}</strong></div>
-                <div><span>{t('Resolved at')}</span><strong>{formatDateTime(selectedIncident.resolvedAt)}</strong></div>
+
+                <div>
+                  <span>{t('Unit')}</span>
+                  <strong>
+                    {selectedIncident.buildingCode} ·{' '}
+                    {selectedIncident.unitNumber}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>{t('Reported by')}</span>
+                  <strong>
+                    {selectedIncident.reportedByName ||
+                      '—'}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>{t('Assigned to')}</span>
+                  <strong>
+                    {selectedIncident.assignedToName ||
+                      t('Unassigned')}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>{t('Occurred at')}</span>
+                  <strong>
+                    {formatDateTime(
+                      selectedIncident.occurredAt,
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>{t('Created')}</span>
+                  <strong>
+                    {formatDateTime(
+                      selectedIncident.createdAt,
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>{t('Resolved at')}</span>
+                  <strong>
+                    {formatDateTime(
+                      selectedIncident.resolvedAt,
+                    )}
+                  </strong>
+                </div>
               </div>
 
-              <div className="panel-section" style={{ marginTop: '20px' }}>
-                <p className="form-section-label">{t('Description')}</p>
-                <p className="muted" style={{ whiteSpace: 'pre-wrap' }}>
+              <div
+                className="panel-section"
+                style={{ marginTop: '20px' }}
+              >
+                <p className="form-section-label">
+                  {t('Description')}
+                </p>
+
+                <p
+                  className="muted"
+                  style={{ whiteSpace: 'pre-wrap' }}
+                >
                   {selectedIncident.description}
                 </p>
               </div>
 
               {selectedIncident.resolution && (
-                <div className="panel-section" style={{ marginTop: '16px' }}>
-                  <p className="form-section-label">{t('Resolution')}</p>
-                  <p className="muted" style={{ whiteSpace: 'pre-wrap' }}>
+                <div
+                  className="panel-section"
+                  style={{ marginTop: '16px' }}
+                >
+                  <p className="form-section-label">
+                    {t('Resolution')}
+                  </p>
+
+                  <p
+                    className="muted"
+                    style={{ whiteSpace: 'pre-wrap' }}
+                  >
                     {selectedIncident.resolution}
                   </p>
                 </div>
@@ -730,26 +1040,51 @@ function IncidentsPage() {
               <IncidentMediaPanel
                 incident={selectedIncident}
                 canManage={canManage}
-                canUpload={canManage || canProviderUpdate}
+                canUpload={
+                  canManage || canProviderUpdate
+                }
                 t={t}
               />
 
               {canManage && (
-                <div className="panel-section" style={{ marginTop: '20px' }}>
-                  <p className="form-section-label">{t('Assignment')}</p>
+                <div
+                  className="panel-section"
+                  style={{ marginTop: '20px' }}
+                >
+                  <p className="form-section-label">
+                    {t('Assignment')}
+                  </p>
+
                   <div className="form-grid-2">
                     <label className="form-field">
                       <span>{t('Assign to')}</span>
+
                       <select
                         value={assignedStaffId}
-                        onChange={(event) => setAssignedStaffId(event.target.value)}
-                        disabled={actionLoading || staffLoading}
+                        onChange={(event) =>
+                          setAssignedStaffId(
+                            event.target.value,
+                          )
+                        }
+                        disabled={
+                          actionLoading || staffLoading
+                        }
                       >
-                        <option value="">{t('Unassigned')}</option>
+                        <option value="">
+                          {t('Unassigned')}
+                        </option>
+
                         {staffOptions.map((staff) => (
-                          <option key={staff.staffId} value={staff.staffId}>
-                            {staff.firstName} {staff.lastName} — {t(staff.staffType)}
-                            {staff.employeeCode ? ` (${staff.employeeCode})` : ''}
+                          <option
+                            key={staff.staffId}
+                            value={staff.staffId}
+                          >
+                            {staff.firstName}{' '}
+                            {staff.lastName} —{' '}
+                            {t(staff.staffType)}
+                            {staff.employeeCode
+                              ? ` (${staff.employeeCode})`
+                              : ''}
                           </option>
                         ))}
                       </select>
@@ -760,31 +1095,51 @@ function IncidentsPage() {
                         className="button button-secondary"
                         type="button"
                         onClick={saveAssignment}
-                        disabled={actionLoading || staffLoading}
+                        disabled={
+                          actionLoading || staffLoading
+                        }
                       >
-                        {actionLoading ? t('Saving...') : t('Save assignment')}
+                        {actionLoading
+                          ? t('Saving...')
+                          : t('Save assignment')}
                       </button>
                     </div>
                   </div>
 
                   {staffLoading && (
-                    <p className="muted">{t('Loading assignable staff...')}</p>
-                  )}
-                  {!staffLoading && staffOptions.length === 0 && (
                     <p className="muted">
-                      {t('No active staff are available for this building.')}
+                      {t(
+                        'Loading assignable staff...',
+                      )}
                     </p>
                   )}
+
+                  {!staffLoading &&
+                    staffOptions.length === 0 && (
+                      <p className="muted">
+                        {t(
+                          'No active staff are available for this building.',
+                        )}
+                      </p>
+                    )}
                 </div>
               )}
 
               {statusTarget === 'RESOLVED' && (
-                <div className="panel-section" style={{ marginTop: '20px' }}>
+                <div
+                  className="panel-section"
+                  style={{ marginTop: '20px' }}
+                >
                   <label className="form-field">
                     <span>{t('Resolution')}</span>
+
                     <textarea
                       value={statusResolution}
-                      onChange={(event) => setStatusResolution(event.target.value)}
+                      onChange={(event) =>
+                        setStatusResolution(
+                          event.target.value,
+                        )
+                      }
                       rows={5}
                       maxLength={10000}
                       disabled={actionLoading}
@@ -796,24 +1151,37 @@ function IncidentsPage() {
                     <button
                       className="button button-secondary"
                       type="button"
-                      onClick={() => setStatusTarget('')}
+                      onClick={() =>
+                        setStatusTarget('')
+                      }
                       disabled={actionLoading}
                     >
                       {t('Cancel')}
                     </button>
+
                     <button
                       className="button button-primary"
                       type="button"
-                      onClick={() => submitStatus('RESOLVED')}
-                      disabled={actionLoading || !statusResolution.trim()}
+                      onClick={() =>
+                        submitStatus('RESOLVED')
+                      }
+                      disabled={
+                        actionLoading ||
+                        !statusResolution.trim()
+                      }
                     >
-                      {actionLoading ? t('Saving...') : t('Resolve incident')}
+                      {actionLoading
+                        ? t('Saving...')
+                        : t('Resolve incident')}
                     </button>
                   </div>
                 </div>
               )}
 
-              <div className="entity-form-actions" style={{ marginTop: '24px' }}>
+              <div
+                className="entity-form-actions"
+                style={{ marginTop: '24px' }}
+              >
                 {canManage && (
                   <button
                     className="button button-secondary"
@@ -826,7 +1194,9 @@ function IncidentsPage() {
                 )}
 
                 {availableStatusActions
-                  .filter((status) => status !== 'RESOLVED')
+                  .filter(
+                    (status) => status !== 'RESOLVED',
+                  )
                   .map((status) => (
                     <button
                       key={status}
@@ -836,7 +1206,9 @@ function IncidentsPage() {
                           : 'button button-primary'
                       }
                       type="button"
-                      onClick={() => submitStatus(status)}
+                      onClick={() =>
+                        submitStatus(status)
+                      }
                       disabled={actionLoading}
                     >
                       {t(
@@ -851,12 +1223,16 @@ function IncidentsPage() {
                     </button>
                   ))}
 
-                {availableStatusActions.includes('RESOLVED')
-                  && statusTarget !== 'RESOLVED' && (
+                {availableStatusActions.includes(
+                  'RESOLVED',
+                ) &&
+                  statusTarget !== 'RESOLVED' && (
                     <button
                       className="button button-primary"
                       type="button"
-                      onClick={() => setStatusTarget('RESOLVED')}
+                      onClick={() =>
+                        setStatusTarget('RESOLVED')
+                      }
                       disabled={actionLoading}
                     >
                       {t('Resolve incident')}
@@ -866,7 +1242,9 @@ function IncidentsPage() {
             </div>
           )
         ) : (
-          <div className="modal-loading-state">{t('Loading...')}</div>
+          <div className="modal-loading-state">
+            {t('Loading...')}
+          </div>
         )}
       </Modal>
     </section>

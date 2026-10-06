@@ -1,4 +1,6 @@
+//---------------------- M24.8.10 -----------------------
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useTranslation } from '../i18n/i18n.js'
 import { useAuth } from '../auth/AuthContext.jsx'
@@ -19,6 +21,7 @@ const PAGE_SIZE = 20
 const OPTION_PAGE_SIZE = 100
 
 const DELIVERY_TYPES = ['PACKAGE', 'MAIL', 'FOOD', 'DOCUMENT', 'OTHER']
+
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -110,6 +113,10 @@ function DeliveriesPage() {
   const [residents, setResidents] = useState([])
   const [optionsLoading, setOptionsLoading] = useState(false)
   const [optionsError, setOptionsError] = useState('')
+
+//M24.8.10
+const navigate = useNavigate()
+const [searchParams, setSearchParams] = useSearchParams()
 
   const loadDeliveries = useCallback(async (targetPage = page) => {
     if (!canView) {
@@ -281,12 +288,46 @@ function DeliveriesPage() {
     }
   }
 
-  const closeDetails = () => {
-    if (!detailLoading) {
-      setSelectedDelivery(null)
-      setDetailError('')
-    }
+//M24.8.10
+useEffect(() => {
+  const openId = searchParams.get('openId')
+
+  if (!openId) return
+
+  openDelivery(openId)
+
+  const nextParams = new URLSearchParams(searchParams)
+  nextParams.delete('openId')
+  setSearchParams(nextParams, { replace: true })
+}, [searchParams, setSearchParams])
+
+const closeDetails = () => {
+  if (detailLoading || actionLoadingId) {
+    return
   }
+
+  const returnTo = searchParams.get('returnTo')
+  const lookupQuery = searchParams.get('lookupQuery')
+  const lookupUnitId = searchParams.get('lookupUnitId')
+
+  if (
+    returnTo === 'unit-lookup' &&
+    lookupQuery &&
+    lookupUnitId
+  ) {
+    navigate(
+      `/dashboard/unit-lookup?query=${encodeURIComponent(
+        lookupQuery
+      )}&unitId=${encodeURIComponent(lookupUnitId)}`
+    )
+
+    return
+  }
+
+  setSelectedDelivery(null)
+  setDetailError('')
+}
+
 
   const updateStatus = async (delivery, status) => {
     if (!delivery?.id || !status) return

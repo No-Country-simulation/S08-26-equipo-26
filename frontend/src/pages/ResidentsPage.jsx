@@ -1,4 +1,6 @@
+//---------------------- M24.8.10 -----------------------
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Modal from '../components/Modal.jsx'
 import TableAction from '../components/TableAction.jsx'
 import TableActions from '../components/TableActions.jsx'
@@ -55,6 +57,10 @@ function ResidentsPage() {
   const role = user?.roles?.[0] || user?.role
   const isAdministrator = role === 'ADMINISTRATOR'
   const canEdit = ['ADMINISTRATOR', 'RESIDENT', 'OWNER'].includes(role)
+
+  //M24.8.10
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [residents, setResidents] = useState([])
   const [users, setUsers] = useState([])
@@ -176,12 +182,47 @@ function ResidentsPage() {
     }
   }
 
-  const closeDetails = () => {
-    if (!detailLoading) {
-      setSelectedResident(null)
-      setDetailError('')
-    }
+// M24.8.10
+useEffect(() => {
+  const openId = searchParams.get('openId')
+
+  if (!openId) return
+
+  viewResident(openId)
+
+  const nextParams = new URLSearchParams(searchParams)
+  nextParams.delete('openId')
+
+  setSearchParams(nextParams, { replace: true })
+}, [searchParams, setSearchParams])
+
+const closeDetails = () => {
+  if (detailLoading) {
+    return
   }
+
+  const returnTo = searchParams.get('returnTo')
+  const lookupQuery = searchParams.get('lookupQuery')
+  const lookupUnitId = searchParams.get('lookupUnitId')
+
+  if (
+    returnTo === 'unit-lookup' &&
+    lookupQuery &&
+    lookupUnitId
+  ) {
+    navigate(
+      `/dashboard/unit-lookup?query=${encodeURIComponent(
+        lookupQuery
+      )}&unitId=${encodeURIComponent(lookupUnitId)}`
+    )
+
+    return
+  }
+
+  setSelectedResident(null)
+  setDetailError('')
+  setEditMode(false)
+}
 
   const startProfileEdit = (resident) => {
     setProfileResidentId(resident.id)

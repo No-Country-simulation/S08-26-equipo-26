@@ -1,4 +1,7 @@
+//---------------------- M24.8.10 -----------------------
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from "react-router-dom";
+
 import { useTranslation } from '../i18n/i18n.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import Modal from '../components/Modal.jsx'
@@ -17,6 +20,7 @@ import {
 const PAGE_SIZE = 20
 const REQUEST_TYPES = ['MOVE_IN', 'MOVE_OUT']
 const STATUSES = ['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'SCHEDULED', 'COMPLETED', 'CANCELLED']
+
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -100,6 +104,10 @@ const canCreate = isAdmin || role === 'RESIDENT'
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState('')
   const [success, setSuccess] = useState('')
+
+  //M24.8.10
+   const navigate = useNavigate()
+   const [searchParams, setSearchParams] = useSearchParams()
 
   const loadMoves = useCallback(async (target = 0) => {
     if (!canList) return
@@ -210,13 +218,60 @@ const canCreate = isAdmin || role === 'RESIDENT'
     }
   }
 
-  const closeDetails = () => {
-    if (actionLoading) return
-    setSelected(null)
-    setDetailError('')
-    setActionError('')
-    setStatusOpen(false)
+//M24.8.10
+useEffect(() => {
+  const openId = searchParams.get('openId')
+
+  if (!openId) return
+
+  openDetails(openId)
+
+  const nextParams = new URLSearchParams(searchParams)
+  nextParams.delete('openId')
+  setSearchParams(nextParams, { replace: true })
+}, [searchParams, setSearchParams])
+
+
+const closeDetails = () => {
+  if (detailLoading || actionLoading) return
+
+  const returnTo = searchParams.get('returnTo')
+
+  if (returnTo === 'unit-lookup') {
+    navigate(-1)
+    return
   }
+
+  setSelected(null)
+  setDetailError('')
+}
+
+const closeDetails2 = () => {
+  if (detailLoading || actionLoading) {
+    return
+  }
+
+  const returnTo = searchParams.get('returnTo')
+  const lookupQuery = searchParams.get('lookupQuery')
+  const lookupUnitId = searchParams.get('lookupUnitId')
+
+  if (
+    returnTo === 'unit-lookup' &&
+    lookupQuery &&
+    lookupUnitId
+  ) {
+    navigate(
+      `/dashboard/unit-lookup?query=${encodeURIComponent(
+        lookupQuery
+      )}&unitId=${encodeURIComponent(lookupUnitId)}`
+    )
+
+    return
+  }
+
+  setSelected(null)
+  setDetailError('')
+}
 
   const openStatus = (status) => {
     setStatusForm({
@@ -409,7 +464,7 @@ const canCreate = isAdmin || role === 'RESIDENT'
         </form>
       </Modal>
 
-      <Modal open={detailLoading || Boolean(selected)} title={t('Move request')} onClose={closeDetails}>
+      <Modal open={detailLoading || Boolean(selected)} title={t('Move request')} onClose={closeDetails2}>
         {detailLoading ? (
           <div className="feedback feedback-info">{t('Loading...')}</div>
         ) : detailError && !selected ? (
