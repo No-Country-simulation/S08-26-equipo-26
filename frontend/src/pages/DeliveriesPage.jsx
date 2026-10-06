@@ -301,20 +301,6 @@ useEffect(() => {
   setSearchParams(nextParams, { replace: true })
 }, [searchParams, setSearchParams])
 
-// const closeDetails = () => {
-//   if (detailLoading || actionLoadingId) return
-
-//   const returnTo = searchParams.get('returnTo')
-
-//   if (returnTo === 'unit-lookup') {
-//     navigate(-1)
-//     return
-//   }
-
-//   setSelectedDelivery(null)
-//   setDetailError('')
-// }
-
 const closeDetails = () => {
   if (detailLoading || actionLoadingId) {
     return
